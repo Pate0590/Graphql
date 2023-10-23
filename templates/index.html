@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stocks Home</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    <h1>Welcome to Stock Portal</h1>
+    <button onclick="addStock()">Add Stock</button>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Ticker</th>
+                <th>Price</th>
+                <th>View</th>
+            </tr>
+        </thead>
+        <tbody id="stockList">
+        </tbody>
+    </table>
+
+    <script>
+        function fetchStocks() {
+            $.get('/stocks', function (data) {
+                let tbody = $("#stockList");
+                tbody.html(""); 
+
+                for (let key in data) {
+                    let stock = data[key];
+                    tbody.append(`
+                        <tr>
+                            <td>${stock.name}</td>
+                            <td>${stock.ticker}</td>
+                            <td>$${stock.currentPrice}</td>
+                            <td><a href="/${stock.ticker}">View</a></td>
+                        </tr>
+                    `);
+                }
+            });
+        }
+
+        function addStock() {
+            let name = prompt("Enter Stock Name:");
+            let ticker = prompt("Enter Stock Ticker:");
+            let price = prompt("Enter Stock Current Price:");
+
+            $.ajax({
+                url: '/stocks',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ name: name, ticker: ticker, currentPrice: price }),
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        alert('Stock added successfully!');
+                        fetchStocks();
+                    } else {
+                        alert('Failed to add stock: ' + response.msg);
+                    }
+                }
+            });
+
+        }
+
+        // On Page Load
+        $(function () {
+            fetchStocks();
+        });
+    </script>
+</body>
+
+</html>

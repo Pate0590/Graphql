@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Details</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+</head>
+<body>
+    <h1>Stock Information for {{ ticker }}</h1>
+
+    <!-- REST API Data -->
+    <h3>REST API</h3>
+    <div id="restData"></div>
+
+    <!-- GraphQL API Data -->
+    <h3>GraphQL API</h3>
+    <div id="graphqlData"></div>
+
+    <!-- WebSocket Data -->
+    <h3>WebSocket</h3>
+    <div id="websocketData"></div>
+
+    <script>
+        var ticker = "{{ ticker }}";
+        var socket = io();
+
+        function fetchRESTData() {
+            $.get('/stocks/' + ticker, function(data) {
+                let div = $("#restData");
+                div.html(`
+                    Name: ${data.name}<br>
+                    Ticker: ${data.ticker}<br>
+                    Price: $${data.currentPrice}
+                `);
+            });
+        }
+
+        function fetchGraphQLData() {
+            let query = {
+                query: `{ stock(ticker: "${ticker}") { name, ticker, currentPrice } }`
+            };
+            $.post('/graphql', query, function(response) {
+                let stock = response.data.stock;
+                let div = $("#graphqlData");
+                div.html(`
+                    Name: ${stock.name}<br>
+                    Ticker: ${stock.ticker}<br>
+                    Price: $${stock.currentPrice}
+                `);
+            });
+        }
+
+        socket.on('stock_data', function(data) {
+            let stock = data[ticker];
+            let div = $("#websocketData");
+            div.html(`
+                Name: ${stock.name}<br>
+                Ticker: ${stock.ticker}<br>
+                Price: $${stock.currentPrice}
+            `);
+        });
+
+        socket.on('connect', function() {
+            console.log("Connected to server");
+            socket.emit('get_stock', ticker);
+        });
+
+       
+        $(function() {
+            setInterval(fetchRESTData, 2000);
+            setInterval(fetchGraphQLData, 2000);
+        });
+    </script>
+</body>
+</html>
