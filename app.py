@@ -7,6 +7,8 @@ from ariadne.constants import CONTENT_TYPE_TEXT_HTML
 from flask_socketio import SocketIO
 import random
 from time import sleep
+import datetime
+import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -22,7 +24,20 @@ type Stock {
     name: String!
     ticker: String!
     currentPrice: Float!
+    day_max:Float!
+    day_min:Float!
+    stock_history: [StockHistory!]!
 }
+
+type StockHistory {
+    price_at_time:String!
+    name: String!
+    ticker: String!
+    currentPrice: Float!
+    day_max:Float!
+    day_min:Float!
+}
+
 """
 
 
@@ -42,13 +57,13 @@ def resolve_stocks(*_):
 schema = make_executable_schema(type_defs, query,stock)
 
 stocks= {
-        'amz': {'name': 'Amazon', 'ticker': 'amz','currentPrice':'100'},
-        'mta': {'name': 'Meta', 'ticker': 'mta','currentPrice':'50'},
+        'amz': {'name': 'Amazon', 'ticker': 'amz','currentPrice':'100', 'stock_history':[], 'day_max':'0', 'day_min':'100'},
+        'mta': {'name': 'Meta', 'ticker': 'mta','currentPrice':'50', 'stock_history':[], 'day_max':'0', 'day_min':'100'},
     }
-users = {
-        '1': {'name': 'Alice', 'email': 'alice@example.com'},
-        '2': {'name': 'Bob', 'email': 'bob@example.com'}
-    }
+# users = {
+#         '1': {'name': 'Alice', 'email': 'alice@example.com'},
+#         '2': {'name': 'Bob', 'email': 'bob@example.com'}
+#     }
 
 @app.route('/stocks', methods=['POST','GET'])
 def handle_stocks():
@@ -60,7 +75,11 @@ def handle_stocks():
         required_keys = ['name',  'ticker','currentPrice']
 
         if all(key in new_stock for key in required_keys):
-            stocks[str(len(stocks.keys()) + 1)] = new_stock
+            new_stock['stock_history'] = []
+            new_stock['day_max'] = new_stock['currentPrice']
+            new_stock['day_min'] = new_stock['currentPrice']
+
+            stocks[new_stock['ticker']] = new_stock
             print(stocks)
             return jsonify({"success":True})
         else:
@@ -136,7 +155,22 @@ def update_stock_prices():
         socketio.sleep(10)
         print('updating...')
         for stock in stocks.values():
-            stock['currentPrice'] = str(random.randint(1, 100))  
+            r_num = str(random.randint(1, 100))
+            stock['currentPrice']  = r_num
+            if(int(r_num)<int(stock['day_min'])):
+                stock['day_min'] = r_num
+            if(int(r_num)>int(stock['day_max'])):
+                stock['day_max'] = r_num
+            
+            stock_cpy = {
+                'name':stock['name'],
+                'ticker':stock['ticker'],
+                'currentPrice':stock['currentPrice'],
+                'day_max':stock['day_max'],
+                'day_min':stock['day_min'],
+                'price_at_time':str(time.time())
+            }
+            stock['stock_history'].append(stock_cpy)
         socketio.emit('stock_data', stocks)  
 
 @app.route('/<ticker>')

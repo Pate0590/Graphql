@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Details</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
 </head>
+
 <body>
     <h1>Stock Information for {{ ticker }}</h1>
 
@@ -22,56 +26,97 @@
     <h3>WebSocket</h3>
     <div id="websocketData"></div>
 
+    <h3>Stock History</h3>
+    <div id="historyDataContainer">
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Name</th>
+                    <th>Ticker</th>
+                    <th>Price</th>
+
+                </tr>
+            </thead>
+            <tbody id="historyData">
+            </tbody>
+        </table>
+    </div>
+
     <script>
         var ticker = "{{ ticker }}";
         var socket = io();
 
         function fetchRESTData() {
-            $.get('/stocks/' + ticker, function(data) {
+            $.get('/stocks/' + ticker, function (data) {
                 let div = $("#restData");
                 div.html(`
                     Name: ${data.name}<br>
                     Ticker: ${data.ticker}<br>
+                    Day High: $${data.day_max}<br>
+                    Day low: $${data.day_min}<br>
                     Price: $${data.currentPrice}
+
                 `);
             });
         }
 
         function fetchGraphQLData() {
             let query = {
-                query: `{ stock(ticker: "${ticker}") { name, ticker, currentPrice } }`
+                query: `{ stock(ticker: "${ticker}") { name, ticker, currentPrice, day_max, day_min  } }`
             };
-            $.post('/graphql', query, function(response) {
+            $.post('/graphql', query, function (response) {
                 let stock = response.data.stock;
                 let div = $("#graphqlData");
                 div.html(`
                     Name: ${stock.name}<br>
                     Ticker: ${stock.ticker}<br>
+                    Day High: $${stock.day_max}<br>
+                    Day low: $${stock.day_min}<br>
                     Price: $${stock.currentPrice}
                 `);
             });
         }
 
-        socket.on('stock_data', function(data) {
+        socket.on('stock_data', function (data) {
             let stock = data[ticker];
             let div = $("#websocketData");
             div.html(`
                 Name: ${stock.name}<br>
                 Ticker: ${stock.ticker}<br>
+                Day High: $${stock.day_max}<br>
+                Day low: $${stock.day_min}<br>
                 Price: $${stock.currentPrice}
             `);
+            let tbody = $("#historyData");
+            tbody.html(""); 
+
+           stock?.stock_history.forEach(sh => {
+            tbody.append(`
+                    <tr>
+                        <td>${new Date(sh.price_at_time * 1000)}</td>
+                        <td>${sh.name}</td>
+                        <td>${sh.ticker}</td>
+                        <td>${sh.currentPrice}</td>
+                    </tr>
+                `);
+            
+           });
+
+
         });
 
-        socket.on('connect', function() {
+        socket.on('connect', function () {
             console.log("Connected to server");
             socket.emit('get_stock', ticker);
         });
 
-       
-        $(function() {
+
+        $(function () {
             setInterval(fetchRESTData, 2000);
             setInterval(fetchGraphQLData, 2000);
         });
     </script>
 </body>
+
 </html>
